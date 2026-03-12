@@ -10,6 +10,7 @@ Docusaurus
 dropdown
 dropdowns
 Emma's
+env
 enum
 Enum
 enums
@@ -18,6 +19,7 @@ GitHub
 GraphQL
 Infrahub
 Infrahub's
+Kinetix
 IPs
 namespace
 Namespace

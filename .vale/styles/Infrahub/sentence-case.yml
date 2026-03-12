@@ -22,6 +22,7 @@ exceptions:
   - API token security
   - Beta
   - Cannot connect to Infrahub
+  - Claude Code configuration
   - Docker Compose
   - Emma
   - Getting an API token

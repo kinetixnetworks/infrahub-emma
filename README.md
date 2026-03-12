@@ -12,7 +12,7 @@
 
 ## Emma
 
-Emma is an experimental agent originally developed by [OpsMill](https://opsmill.com) for their [Infrahub](https://github.com/opsmill/infrahub) platform. This fork is maintained by **Josh Finlay** at **[Kinetix Networks](https://kinetixnetworks.com.au)** and integrates [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic as the AI backend, replacing the original OpenAI-based implementation.
+Emma is an experimental agent originally developed by [OpsMill](https://opsmill.com) for their [Infrahub](https://github.com/opsmill/infrahub) platform. This fork is maintained by **Josh Finlay** at **[Kinetix Networks](https://kinetix.net.au)** and integrates [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic as the AI backend, replacing the original OpenAI-based implementation.
 
 Currently, Emma can help you to:
 
