@@ -13,8 +13,8 @@ const config: Config = {
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
-  organizationName: 'opsmill',
-  projectName: 'emma',
+  organizationName: 'kinetixnetworks',
+  projectName: 'infrahub-emma',
 
   onBrokenLinks: 'throw',
   onDuplicateRoutes: "throw",
@@ -37,7 +37,7 @@ const config: Config = {
       "classic",
       {
         docs: {
-          editUrl: "https://github.com/opsmill/emma/tree/main/docs",
+          editUrl: "https://github.com/kinetixnetworks/infrahub-emma/tree/main/docs",
           routeBasePath: "/",
           sidebarCollapsed: true,
           sidebarPath: "./sidebars.ts",
@@ -65,7 +65,7 @@ const config: Config = {
           label: "Emma",
         },
         {
-          href: "https://github.com/opsmill/emma",
+          href: "https://github.com/kinetixnetworks/infrahub-emma",
           position: "right",
           className: "header-github-link",
           "aria-label": "GitHub repository",

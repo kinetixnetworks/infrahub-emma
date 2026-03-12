@@ -24,6 +24,7 @@ Emma uses the same environment variables as other Infrahub tools for consistency
 |----------|-------------|---------|---------|
 | `EMMA_FEATURE_FLAGS` | Comma-separated list of experimental features | `""` | `query_builder,template_builder` |
 | `INFRAHUB_TIMEOUT` | API request timeout in seconds | `30` | `60` |
+| `CLAUDE_AUTH_TOKEN` | Claude Code authentication token (for Docker) | `""` | `<token from claude setup-token>` |
 
 ## Setting environment variables
 
@@ -47,13 +48,18 @@ export INFRAHUB_API_TOKEN="06438eb2-8019-4776-878c-0941b1f1d1ec"
 export EMMA_FEATURE_FLAGS="query_builder,template_builder"
 ```
 
+For Claude Code, authenticate locally (not via env var):
+
+```bash
+claude setup-token
+```
+
 </TabItem>
 <TabItem value="docker" label="Docker">
 
 When using Docker, set environment variables in your `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
 services:
   emma:
     build: .
@@ -63,6 +69,7 @@ services:
       - INFRAHUB_ADDRESS=http://infrahub:8000
       - INFRAHUB_API_TOKEN=your-api-token-here
       - EMMA_FEATURE_FLAGS=query_builder
+      - CLAUDE_AUTH_TOKEN=${CLAUDE_AUTH_TOKEN}
 ```
 
 Or use an environment file:
@@ -141,13 +148,11 @@ Emma also provides configuration options within the web interface:
 - **Branch**: Select which Infrahub branch to work with
 - **Timeout**: Adjust request timeout for slow connections
 
-### AI assistant settings
+### AI assistant
 
-- **OpenAI API Key**: Configure AI features for schema generation
-- **Model Selection**: Choose between different AI models
-- **Temperature**: Adjust AI creativity level
+Emma uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) for AI-powered features. Claude Code must be installed and authenticated before using the Schema Builder, Query Builder, or Template Builder.
 
-Access these settings through the sidebar in any Emma page.
+For local development, authenticate with `claude setup-token`. For Docker deployments, pass your token via the `CLAUDE_AUTH_TOKEN` environment variable.
 
 ## Feature flags
 

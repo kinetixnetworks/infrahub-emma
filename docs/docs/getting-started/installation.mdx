@@ -5,7 +5,7 @@ title: Installation
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Emma is an experimental AI-powered assistant for Infrahub that helps you manage infrastructure schemas and data through an intuitive web interface.
+Emma is an experimental AI-powered assistant for Infrahub that helps you manage infrastructure schemas and data through an intuitive web interface. This fork uses [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic for AI features.
 
 ## Prerequisites
 
@@ -13,6 +13,8 @@ Before installing Emma, ensure you have:
 
 - **Infrahub instance**: Emma requires a running Infrahub instance to connect to
 - **Docker** (for containerized deployment) or **Python 3.10+** and **uv** (for local development)
+- **Claude Code CLI**: Required for AI-powered features (Schema Builder, Query Builder, Template Builder)
+- **Claude Pro or Max subscription**: Required to authenticate with Claude Code
 
 ## Installation methods
 
@@ -45,17 +47,27 @@ To run Emma alongside your existing Infrahub setup:
 1. **Clone the Emma repository:**
 
 ```bash
-git clone https://github.com/opsmill/emma.git
-cd emma
+git clone https://github.com/kinetixnetworks/infrahub-emma.git
+cd infrahub-emma
 ```
 
-2. **Start Emma with Docker Compose:**
+2. **Set your Claude authentication token:**
 
 ```bash
-docker compose up --build -d
+# Get your token (requires Claude Pro/Max subscription)
+claude setup-token
+
+# Set it in your environment or .env file
+export CLAUDE_AUTH_TOKEN="<your-token>"
 ```
 
-3. **Connect to Infrahub network** (if running Infrahub in containers):
+3. **Start Emma with Docker Compose:**
+
+```bash
+CLAUDE_AUTH_TOKEN="<your-token>" docker compose up --build -d
+```
+
+4. **Connect to Infrahub network** (if running Infrahub in containers):
 
 ```bash
 # Find your Infrahub network name
@@ -75,17 +87,29 @@ For development or custom setups:
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/opsmill/emma.git
-cd emma
+git clone https://github.com/kinetixnetworks/infrahub-emma.git
+cd infrahub-emma
 ```
 
-2. **Install dependencies with uv:**
+2. **Install Claude Code CLI:**
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+3. **Authenticate with your Claude subscription:**
+
+```bash
+claude setup-token
+```
+
+4. **Install dependencies with uv:**
 
 ```bash
 uv sync
 ```
 
-3. **Run Emma:**
+5. **Run Emma:**
 
 ```bash
 uv run streamlit run main.py

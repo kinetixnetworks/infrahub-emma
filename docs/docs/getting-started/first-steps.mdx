@@ -88,9 +88,10 @@ To see Emma in action with real data:
 
 ### AI integration
 
-- Emma's Schema Builder uses AI to help create schemas from natural language
-- The AI understands infrastructure concepts and can suggest appropriate attributes and relationships
-- Review AI-generated schemas carefully before using them in production
+- Emma uses [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic to power its AI features
+- The Schema Builder, Query Builder, and Template Builder all use Claude to understand infrastructure concepts and generate appropriate schemas, queries, and templates
+- Claude Code CLI must be installed and authenticated before using AI features
+- Review AI-generated output carefully before using it in production
 
 ## Next steps
 

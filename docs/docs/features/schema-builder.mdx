@@ -8,7 +8,7 @@ Emma's Schema Builder is an AI-powered tool that helps you create Infrahub schem
 
 ## How it works
 
-The Schema Builder leverages OpenAI's language models to understand infrastructure concepts and translate natural language requirements into properly structured Infrahub schemas. It understands:
+The Schema Builder leverages [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic to understand infrastructure concepts and translate natural language requirements into properly structured Infrahub schemas. It understands:
 
 - Common infrastructure components (devices, interfaces, IP addresses, etc.)
 - Relationships between infrastructure objects
@@ -157,9 +157,9 @@ Create an IP address schema with:
 
 ### Performance considerations
 
-- **API calls**: Each generation requires an OpenAI API call
+- **CLI invocation**: Each generation invokes the Claude Code CLI
 - **Response time**: Complex descriptions may take longer to process
-- **Rate limits**: Be aware of OpenAI API rate limitations
+- **Subscription**: A Claude Pro or Max subscription is required
 
 ## Integration with other Emma features
 
@@ -196,7 +196,7 @@ The Schema Builder integrates seamlessly with other Emma features:
 
 - Simplify complex descriptions
 - Break large schemas into smaller components
-- Check network connectivity to OpenAI API
+- Ensure Claude Code CLI is installed and authenticated (`claude setup-token`)
 
 For more troubleshooting help, see the [Troubleshooting Guide](../reference/troubleshooting).
 
