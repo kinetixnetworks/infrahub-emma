@@ -27,9 +27,9 @@ This reference covers all configuration options available in Emma, including env
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|----------|
-| `CLAUDE_AUTH_TOKEN` | Claude Code auth token (for Docker deployments) | `""` | `<token from claude setup-token>` |
+| `CLAUDE_CREDENTIALS` | Base64-encoded Claude credentials (for Docker) | `""` | `<base64 of ~/.claude/.credentials.json>` |
 
-For local development, authenticate directly with `claude setup-token` instead of using an environment variable.
+For local development, authenticate directly with `claude setup-token`. For Docker, export credentials from an authenticated machine with `cat ~/.claude/.credentials.json | base64 -w0`.
 
 ### Logging configuration
 
@@ -97,7 +97,7 @@ Emma provides runtime configuration through the web interface:
 
 #### AI settings
 
-Emma uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) for AI features. Claude Code must be installed and authenticated before using the Schema Builder, Query Builder, or Template Builder. For local development, run `claude setup-token`. For Docker, pass `CLAUDE_AUTH_TOKEN` as an environment variable.
+Emma uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) for AI features. Claude Code must be installed and authenticated before using the Schema Builder, Query Builder, or Template Builder. For local development, run `claude setup-token`. For Docker, pass base64-encoded credentials via `CLAUDE_CREDENTIALS`.
 
 #### Import/export settings
 
@@ -153,7 +153,7 @@ services:
       # Optional
       - INFRAHUB_TIMEOUT=60
       - EMMA_FEATURE_FLAGS=query_builder,template_builder
-      - CLAUDE_AUTH_TOKEN=${CLAUDE_AUTH_TOKEN}
+      - CLAUDE_CREDENTIALS=${CLAUDE_CREDENTIALS}
 
       # Streamlit Configuration
       - STREAMLIT_SERVER_PORT=8501
@@ -210,11 +210,11 @@ spec:
             secretKeyRef:
               name: emma-secrets
               key: api-token
-        - name: CLAUDE_AUTH_TOKEN
+        - name: CLAUDE_CREDENTIALS
           valueFrom:
             secretKeyRef:
               name: emma-secrets
-              key: claude-auth-token
+              key: claude-credentials
         - name: EMMA_FEATURE_FLAGS
           valueFrom:
             configMapKeyRef:
@@ -264,7 +264,7 @@ metadata:
 type: Opaque
 data:
   api-token: <base64-encoded-token>
-  claude-auth-token: <base64-encoded-token>
+  claude-credentials: <base64-encoded-credentials>
 ```
 
 ## Security configuration

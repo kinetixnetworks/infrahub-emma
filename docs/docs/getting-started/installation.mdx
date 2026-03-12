@@ -51,20 +51,16 @@ git clone https://github.com/kinetixnetworks/infrahub-emma.git
 cd infrahub-emma
 ```
 
-2. **Set your Claude authentication token:**
+2. **Export your Claude credentials** (from a machine where Claude Code is already authenticated):
 
 ```bash
-# Get your token (requires Claude Pro/Max subscription)
-claude setup-token
-
-# Set it in your environment or .env file
-export CLAUDE_AUTH_TOKEN="<your-token>"
+cat ~/.claude/.credentials.json | base64 -w0
 ```
 
 3. **Start Emma with Docker Compose:**
 
 ```bash
-CLAUDE_AUTH_TOKEN="<your-token>" docker compose up --build -d
+CLAUDE_CREDENTIALS="<base64-string>" docker compose up --build -d
 ```
 
 4. **Connect to Infrahub network** (if running Infrahub in containers):

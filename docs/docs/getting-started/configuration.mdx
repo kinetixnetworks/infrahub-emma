@@ -24,7 +24,7 @@ Emma uses the same environment variables as other Infrahub tools for consistency
 |----------|-------------|---------|---------|
 | `EMMA_FEATURE_FLAGS` | Comma-separated list of experimental features | `""` | `query_builder,template_builder` |
 | `INFRAHUB_TIMEOUT` | API request timeout in seconds | `30` | `60` |
-| `CLAUDE_AUTH_TOKEN` | Claude Code authentication token (for Docker) | `""` | `<token from claude setup-token>` |
+| `CLAUDE_CREDENTIALS` | Base64-encoded Claude credentials (for Docker) | `""` | `<base64 of ~/.claude/.credentials.json>` |
 
 ## Setting environment variables
 
@@ -69,7 +69,7 @@ services:
       - INFRAHUB_ADDRESS=http://infrahub:8000
       - INFRAHUB_API_TOKEN=your-api-token-here
       - EMMA_FEATURE_FLAGS=query_builder
-      - CLAUDE_AUTH_TOKEN=${CLAUDE_AUTH_TOKEN}
+      - CLAUDE_CREDENTIALS=${CLAUDE_CREDENTIALS}
 ```
 
 Or use an environment file:
@@ -152,7 +152,7 @@ Emma also provides configuration options within the web interface:
 
 Emma uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) for AI-powered features. Claude Code must be installed and authenticated before using the Schema Builder, Query Builder, or Template Builder.
 
-For local development, authenticate with `claude setup-token`. For Docker deployments, pass your token via the `CLAUDE_AUTH_TOKEN` environment variable.
+For local development, authenticate with `claude setup-token`. For Docker deployments, pass your base64-encoded credentials via the `CLAUDE_CREDENTIALS` environment variable.
 
 ## Feature flags
 

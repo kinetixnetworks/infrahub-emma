@@ -3,13 +3,13 @@
 x-emma-config: &emma_config
   INFRAHUB_ADDRESS: "http://infrahub-server:8000"
   INFRAHUB_API_TOKEN: "06438eb2-8019-4776-878c-0941b1f1d1ec"
-  CLAUDE_AUTH_TOKEN: "${CLAUDE_AUTH_TOKEN:-}"
+  CLAUDE_CREDENTIALS: "${CLAUDE_CREDENTIALS:-}"
 
 services:
   emma:
     build:
       dockerfile: Dockerfile
-    image: "${EMMA_DOCKER_REPOSITORY:-registry.opsmill.io/opsmill/emma}:${VERSION:-latest}"
+    image: "${EMMA_DOCKER_REPOSITORY:-ghcr.io/kinetixnetworks/infrahub-emma}:${VERSION:-latest}"
     pull_policy: always
     environment:
       <<: *emma_config

@@ -60,27 +60,27 @@ Emma uses the Claude Code CLI binary for its AI features. You need to authentica
 
 ### Docker
 
-When running Emma in Docker, pass your Claude authentication token as an environment variable.
+When running Emma in Docker, pass your Claude credentials as a base64-encoded environment variable.
 
-1. First, get your token by running locally:
+1. On a machine where Claude Code is already authenticated, export your credentials:
 
    ```bash
-   claude setup-token
+   cat ~/.claude/.credentials.json | base64 -w0
    ```
 
 2. Run with Docker Compose:
 
    ```bash
-   CLAUDE_AUTH_TOKEN="<your-token>" docker-compose up
+   CLAUDE_CREDENTIALS="<base64-string>" docker compose up
    ```
 
    Or create a `.env` file next to `docker-compose.yml`:
 
    ```env
-   CLAUDE_AUTH_TOKEN=<your-token>
+   CLAUDE_CREDENTIALS=<base64-string>
    ```
 
-   The container's entrypoint will automatically authenticate Claude Code before starting the app. If no token is provided, Emma will still run but the AI-powered features (Schema Builder, Query Builder, Template Builder) will not be available.
+   The container's entrypoint writes the credentials file before starting the app. If no credentials are provided, Emma will still run but the AI-powered features (Schema Builder, Query Builder, Template Builder) will not be available.
 
 ## Running Emma
 
