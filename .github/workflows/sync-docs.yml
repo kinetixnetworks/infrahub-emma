@@ -1,37 +1,14 @@
+# NOTE: This workflow was originally used by OpsMill to sync docs to opsmill/infrahub-docs.
+# It is disabled in this fork as we do not have access to that repository.
+# To re-enable, update the target repository and PAT_TOKEN secret.
 name: Sync Folders
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docs/docs/**'
-      - 'docs/sidebars.ts'
+  workflow_dispatch:  # Manual trigger only
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source repository
-        uses: actions/checkout@v6
-        with:
-          path: source-repo
-
-      - name: Checkout target repository
-        uses: actions/checkout@v6
-        with:
-          repository: opsmill/infrahub-docs
-          token: ${{ secrets.PAT_TOKEN }}
-          path: target-repo
-
-      - name: Sync folders
-        run: |
-          rm -rf target-repo/docs/docs-emma/*
-          rm -f target-repo/docs/sidebars-emma.ts
-          cp -r source-repo/docs/docs/* target-repo/docs/docs-emma/
-          cp source-repo/docs/sidebars.ts target-repo/docs/sidebars-emma.ts
-          cd target-repo
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .
-          if ! (git diff --quiet && git diff --staged --quiet); then git commit -m "Sync docs from emma repo" && git push; fi
+      - name: Placeholder
+        run: echo "Doc sync is disabled in this fork. Update the workflow to target your own docs repo."
