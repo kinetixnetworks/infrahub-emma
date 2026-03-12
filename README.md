@@ -12,15 +12,75 @@
 
 ## Emma
 
-Emma is an experimental agent designed to help you interact with Infrahub.
+Emma is an experimental agent originally developed by [OpsMill](https://opsmill.com) for their [Infrahub](https://github.com/opsmill/infrahub) platform. This fork is maintained by **Josh Finlay** at **[Kinetix Networks](https://kinetixnetworks.com.au)** and integrates [Claude Code](https://docs.anthropic.com/en/docs/claude-code) by Anthropic as the AI backend, replacing the original OpenAI-based implementation.
 
 Currently, Emma can help you to:
 
 - Import CSV Data into Infrahub
 - Export Data from Infrahub in CSV format
 - Build, Load, and Visualize the Infrahub schema
+- Generate schemas from natural language using AI (Schema Builder)
+- Build GraphQL queries with AI assistance (Query Builder)
+- Create Jinja2 templates from query data with AI (Template Builder)
 
 ![Home page](static/home_page.png)
+
+## Prerequisites
+
+- Python 3.10–3.12
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and on your PATH
+- A [Claude Pro or Max subscription](https://claude.ai) (for AI-powered features)
+
+## Setting Up Claude Code
+
+Emma uses the Claude Code CLI binary for its AI features. You need to authenticate once before using the Schema Builder, Query Builder, or Template Builder.
+
+### Local Development
+
+1. Install Claude Code:
+
+   ```bash
+   npm install -g @anthropic-ai/claude-code
+   ```
+
+2. Authenticate with your Claude subscription:
+
+   ```bash
+   claude setup-token
+   ```
+
+   Follow the prompts to log in with your Claude.ai account.
+
+3. Run Emma:
+
+   ```bash
+   uv sync
+   uv run streamlit run main.py
+   ```
+
+### Docker
+
+When running Emma in Docker, pass your Claude authentication token as an environment variable.
+
+1. First, get your token by running locally:
+
+   ```bash
+   claude setup-token
+   ```
+
+2. Run with Docker Compose:
+
+   ```bash
+   CLAUDE_AUTH_TOKEN="<your-token>" docker-compose up
+   ```
+
+   Or create a `.env` file next to `docker-compose.yml`:
+
+   ```env
+   CLAUDE_AUTH_TOKEN=<your-token>
+   ```
+
+   The container's entrypoint will automatically authenticate Claude Code before starting the app. If no token is provided, Emma will still run but the AI-powered features (Schema Builder, Query Builder, Template Builder) will not be available.
 
 ## Running Emma
 

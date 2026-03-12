@@ -1,63 +1,18 @@
 import datetime
-import io
 import json
-import os
 import re
 from typing import Any
 
 import streamlit as st
 import yaml
 from infrahub_sdk.exceptions import GraphQLError
-from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
-from langchain_core.agents import AgentFinish
-from openai import OpenAI
 
 from emma.assistant_utils import generate_yaml
-from emma.gql_queries import generate_full_query, get_gql_schema
+from emma.claude_utils import ClaudeCodeError, invoke_claude_with_history
+from emma.gql_queries import get_gql_schema
 from emma.infrahub import run_gql_query
 from emma.streamlit_utils import handle_reachability_error, set_page_config
 from menu import menu_with_redirect
-
-api_key = "EmmaDefaultAuthMakingInfrahubEasierToUse!!!11"
-
-client = OpenAI(base_url="https://emma.opsmill.cloud/v1", api_key=api_key)
-
-tools = [generate_full_query]
-
-agent = OpenAIAssistantV2Runnable(
-    assistant_id=os.environ.get("OPENAI_ASSISTANT_ID", "asst_6O5PoPYLqD8FuJPAI7A6Odbj"),
-    as_agent=True,
-    client=client,
-    check_every_ms=1000,
-)
-
-
-def execute_agent(agent_runner: Any, user_prompt: dict[str, Any]) -> AgentFinish:
-    """Execute an agent with the given prompt."""
-    tool_map = {tool.name: tool for tool in tools}
-
-    resp = agent_runner.invoke(
-        user_prompt,
-        attachments=[
-            {
-                "file_id": st.session_state.infrahub_query_fid,
-                "tools": [{"type": "file_search"}],
-            }
-        ],
-    )
-
-    with st.spinner("Refining your query! Just another moment."):
-        while not isinstance(resp, AgentFinish):
-            tool_outputs = []
-            for action in resp:
-                print(f"Querying base object: {action.tool_input}")
-                tool_output = tool_map[action.tool].invoke(action.tool_input)
-                tool_outputs.append({"output": tool_output, "tool_call_id": action.tool_call_id})
-            resp = agent.invoke(
-                {"tool_outputs": tool_outputs, "run_id": action.run_id, "thread_id": action.thread_id}  # pylint: disable=undefined-loop-variable
-            )
-
-    return resp
 
 
 def remove_extra_values(d: Any) -> Any:
@@ -77,27 +32,26 @@ def remove_extra_values(d: Any) -> Any:
     return d
 
 
+QUERY_BUILDER_SYSTEM_PROMPT = """You are Emma, an expert GraphQL query builder for the Infrahub platform.
+You help users create GraphQL queries to retrieve data from their Infrahub instance.
+
+When generating queries, follow these rules:
+- Output valid GraphQL queries compatible with Infrahub
+- Use proper Infrahub query structure with edges, nodes, and attribute value access
+- Always output queries in a single fenced code block (```graphql ... ```)
+- Be concise in explanations but thorough in query definitions
+- DO NOT include internal attributes like: is_default, is_inherited, is_protected, is_visible, updated_at, id, is_from_profile
+  unless the user specifically requests them
+- Use fragments to conditionally fetch extra data where present
+- Keep queries concise without extra data outside of the user's request
+"""
+
 INITIAL_PROMPT = """\n\nThe above is the user requirements spec!
 
-Once you find the right root object, you MUST use the generate_full_query tool
-to fetch all the fields that you can fetch data from for the given object.
+Based on the GraphQL schema provided as context, build a query that matches the user's needs.
 
-Do not assume your search results are complete - that is what the tool is for!
-
-You'll want to filter down the huge query you generated to what you're actually after!
-
-*DO* use fragments to conditionally fetch extra data where present
-
-*DO NOT* include internal attributes like:
-
-is_default
-is_inherited
-is_protected
-is_visible
-updated_at
-id
-is_from_profile
-
+Do NOT include internal attributes like:
+is_default, is_inherited, is_protected, is_visible, updated_at, id, is_from_profile
 unless the user specifically requests internal attributes.
 
 Your query needs to be concise, and without any extra data outside of the users query."""
@@ -139,9 +93,6 @@ st.sidebar.download_button(
 )
 
 if st.sidebar.button("New Chat", disabled=buttons_disabled):
-    if "query_thread_id" in st.session_state:
-        del st.session_state.query_thread_id
-
     if "prompt_input" in st.session_state:
         del st.session_state.prompt_input
 
@@ -150,7 +101,7 @@ if st.sidebar.button("New Chat", disabled=buttons_disabled):
     st.rerun()
 
 # Fetch GraphQL schema
-if "infrahub_query_fid" not in st.session_state:
+if "infrahub_query_schema_context" not in st.session_state:
     with st.spinner(text="Processing the schema! Just a second."):
         gql_schema = get_gql_schema(st.session_state.infrahub_branch)
 
@@ -162,14 +113,9 @@ if "infrahub_query_fid" not in st.session_state:
 
             yaml_schema = yaml.dump(clean_schema, default_flow_style=False)
 
-            # For testing schema output
-            # with open("text.yml", "w") as f:
-            #     f.write(yaml_schema)
-
-            file_like_object = io.BytesIO(yaml_schema.encode("utf-8"))
-            file_like_object.name = "graphql_schema.yaml.txt"
-            message_file = client.files.create(file=file_like_object, purpose="assistants")
-            st.session_state.infrahub_query_fid = message_file.id
+            # Store the schema YAML as context for Claude
+            st.session_state.infrahub_query_schema_yaml = yaml_schema
+            st.session_state.infrahub_query_schema_context = True
 
 # Demo prompts
 demo_prompts = [
@@ -196,25 +142,31 @@ for message in st.session_state.query_messages:
         st.markdown(message["content"])
 
 if prompt:
-    st.session_state.query_messages.append({"role": "user", "content": prompt})
+    # Build the actual prompt with context for the first message
+    actual_prompt = prompt
+    if not st.session_state.query_messages:
+        actual_prompt = prompt + INITIAL_PROMPT
+
+    st.session_state.query_messages.append({"role": "user", "content": actual_prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        if not st.session_state.query_messages:
-            prompt += INITIAL_PROMPT
-
-        chat_input = {"content": prompt}
-        if "query_thread_id" in st.session_state:
-            chat_input["thread_id"] = st.session_state.query_thread_id
-
         with st.spinner(text="Thinking! Just a moment..."):
-            response = execute_agent(agent, chat_input)
+            try:
+                # Provide the GraphQL schema as a context file
+                context_files = {}
+                if "infrahub_query_schema_yaml" in st.session_state:
+                    context_files["graphql_schema.yaml"] = st.session_state.infrahub_query_schema_yaml
 
-        if "query_thread_id" not in st.session_state:
-            st.session_state.query_thread_id = response.return_values["thread_id"]
-
-        output = response.return_values["output"]
+                response = invoke_claude_with_history(
+                    messages=st.session_state.query_messages,
+                    system_prompt=QUERY_BUILDER_SYSTEM_PROMPT,
+                    context_files=context_files if context_files else None,
+                )
+                output = response["output"]
+            except ClaudeCodeError as exc:
+                output = f"Error communicating with Claude: {exc}"
 
         st.write(output)
 

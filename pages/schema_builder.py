@@ -1,35 +1,32 @@
 import datetime
-import io
 import json
-import os
 import re
 from typing import Any
 
 import streamlit as st
 import yaml
-from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
-from openai import OpenAI
 
 from emma.assistant_utils import generate_yaml
+from emma.claude_utils import ClaudeCodeError, invoke_claude_with_history
 from emma.infrahub import check_schema, get_cached_schema
 from emma.streamlit_utils import handle_reachability_error, set_page_config
 from menu import menu_with_redirect
 
-api_key = "EmmaDefaultAuthMakingInfrahubEasierToUse!!!11"
+SCHEMA_BUILDER_SYSTEM_PROMPT = """You are Emma, an expert Infrahub schema builder assistant.
+You help users create and modify infrastructure schemas in YAML format for the Infrahub platform.
 
-client = OpenAI(base_url="https://emma.opsmill.cloud/v1", api_key=api_key)
-
-agent = OpenAIAssistantV2Runnable(
-    assistant_id=os.environ.get("OPENAI_ASSISTANT_ID", "asst_1XurhPZgTg2iBk3FcuqWQH0l"),
-    as_agent=True,
-    client=client,
-    check_every_ms=1000,
-)
+When generating schemas, follow these rules:
+- Output valid YAML schema definitions compatible with Infrahub
+- Use proper Infrahub schema structure with nodes, generics, attributes, and relationships
+- Include appropriate namespaces, labels, and descriptions
+- Always output schemas in a single fenced code block (```yaml ... ```)
+- Include a comment on the first line of the code block with a suggested filename (e.g. # interfaces.yml)
+- Be concise in explanations but thorough in schema definitions
+"""
 
 INITIAL_PROMPT_HEADER = """The following is a user request for a new schema, or a modification.
 You are to generate a new schema segment that will work with the provided existing schema.
 
-The file attached you've been provided is the existing schema.
 Here is an overview of the nodes present, in `namespace: [node: [attribute: kind]]` format.
 
 This is *not* the format we want back, just an idea of what is here already.
@@ -172,12 +169,10 @@ if st.sidebar.download_button(
 
 
 if st.sidebar.button("New Chat", disabled=buttons_disabled):
-    if "thread_id" in st.session_state:
-        del st.session_state.thread_id
     st.session_state.messages = []
     st.rerun()
 
-if "infrahub_schema_fid" not in st.session_state:
+if "infrahub_schema_context" not in st.session_state:
     infrahub_schema = get_cached_schema(st.session_state.infrahub_branch)
     if not infrahub_schema:
         handle_reachability_error()
@@ -188,16 +183,9 @@ if "infrahub_schema_fid" not in st.session_state:
             if v.namespace  # not in ("Core", "Profile", "Builtin")
         }
 
-        yaml_schema = yaml.dump(transformed_schema, default_flow_style=False)
-
-        # Convert the schema to a BytesIO object
-        file_like_object = io.BytesIO(yaml_schema.encode("utf-8"))
-        file_like_object.name = "current_schema.yaml.txt"
-
-        # Upload the file-like object
-        message_file = client.files.create(file=file_like_object, purpose="assistants")
-
-        st.session_state.infrahub_schema_fid = message_file.id
+        # Store the schema YAML as context for Claude
+        st.session_state.infrahub_schema_yaml = yaml.dump(transformed_schema, default_flow_style=False)
+        st.session_state.infrahub_schema_context = True
 
         # Create and store the schema overview for the initial prompt
         overviews = [transform_schema_overview(schema.model_dump()) for schema in infrahub_schema.values()]
@@ -234,37 +222,35 @@ for message in st.session_state.messages:
 
 # Handle new user input
 if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Build the actual prompt with context for the first message
+    actual_prompt = prompt
+    if not st.session_state.messages:
+        actual_prompt = (
+            INITIAL_PROMPT_HEADER.format(overview=st.session_state.schema_overview)
+            + prompt
+            + FILENAME_PROMPT_FOOTER
+        )
+
+    st.session_state.messages.append({"role": "user", "content": actual_prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Existing code to handle the assistant response
     with st.chat_message("assistant"):
-        chat_input = {"content": prompt}
-
-        if "thread_id" in st.session_state:
-            chat_input["thread_id"] = st.session_state.thread_id
-        else:
-            chat_input["content"] = (
-                INITIAL_PROMPT_HEADER.format(overview=st.session_state.schema_overview)
-                + chat_input["content"]
-                + FILENAME_PROMPT_FOOTER
-            )
         with st.spinner(text="Thinking! Just a moment..."):
-            response = agent.invoke(
-                input=chat_input,
-                attachments=[
-                    {
-                        "file_id": st.session_state.infrahub_schema_fid,
-                        "tools": [{"type": "file_search"}],
-                    }
-                ],
-            )
+            try:
+                # Provide the full schema as a context file
+                context_files = {}
+                if "infrahub_schema_yaml" in st.session_state:
+                    context_files["current_schema.yaml"] = st.session_state.infrahub_schema_yaml
 
-        if "thread_id" not in st.session_state:
-            st.session_state.thread_id = response.return_values["thread_id"]  # type: ignore[union-attr]
-
-        output = response.return_values["output"]  # type: ignore[union-attr]
+                response = invoke_claude_with_history(
+                    messages=st.session_state.messages,
+                    system_prompt=SCHEMA_BUILDER_SYSTEM_PROMPT,
+                    context_files=context_files if context_files else None,
+                )
+                output = response["output"]
+            except ClaudeCodeError as exc:
+                output = f"Error communicating with Claude: {exc}"
 
         st.write(output)
 

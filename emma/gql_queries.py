@@ -1,5 +1,4 @@
 from graphql import GraphQLList, GraphQLNonNull, GraphQLObjectType, build_client_schema, get_introspection_query
-from langchain.tools import tool
 
 from emma.infrahub import run_gql_query
 
@@ -68,7 +67,6 @@ def generate_query(object_type: GraphQLObjectType, visited_types: set | None = N
     return query
 
 
-@tool
 def generate_full_query(branch: str | None, root_object_name: str) -> str | None:
     """
     Generates a comprehensive GraphQL query for a specified root object, including all its fields
@@ -154,4 +152,4 @@ def generate_full_query(branch: str | None, root_object_name: str) -> str | None
 
 if __name__ == "__main__":
     # For testing sake
-    print(generate_full_query.run(tool_input={"branch": None, "root_object_name": "InfraInterfaceL3"}))  # pyright: ignore[reportFunctionMemberAccess]
+    print(generate_full_query(branch=None, root_object_name="InfraInterfaceL3"))

@@ -8,13 +8,18 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Install libraries and packages
+# Install libraries and packages (including Node.js for Claude Code CLI)
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y curl git pkg-config build-essential ca-certificates && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install --no-install-recommends -y nodejs && \
     apt-get autoremove -y && \
     apt-get clean all && \
     rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
 
 # Copy lock and install all dependencies
 WORKDIR /source
@@ -25,7 +30,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . ./
 RUN uv sync --frozen --no-dev
 
+# Make entrypoint executable
+RUN chmod +x /source/entrypoint.sh
+
 # Run streamlit app
 EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-ENTRYPOINT ["uv", "run", "streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["/source/entrypoint.sh"]

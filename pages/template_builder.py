@@ -1,30 +1,31 @@
 import datetime
 import json
-import os
 import re
 
 import streamlit as st
 from infrahub_sdk.exceptions import GraphQLError
 from infrahub_sdk.jinja2 import identify_faulty_jinja_code
 from jinja2 import Template, TemplateSyntaxError
-from langchain_community.agents.openai_assistant import OpenAIAssistantV2Runnable
-from openai import OpenAI
 
 from emma.assistant_utils import generate_yaml
+from emma.claude_utils import ClaudeCodeError, invoke_claude_with_history
 from emma.infrahub import run_gql_query
 from emma.streamlit_utils import set_page_config
 from menu import menu_with_redirect
 
-api_key = "EmmaDefaultAuthMakingInfrahubEasierToUse!!!11"
+TEMPLATE_BUILDER_SYSTEM_PROMPT = """You are Emma, an expert Jinja2 template builder for the Infrahub platform.
+You help users create Jinja2 templates based on GraphQL query data from their Infrahub instance.
 
-client = OpenAI(base_url="https://emma.opsmill.cloud/v1", api_key=api_key)
-
-agent = OpenAIAssistantV2Runnable(
-    assistant_id=os.environ.get("TEMPLATE_ASSISTANT_ID", "asst_RVFDTr6emtjcEqwQfNVNYmcm"),
-    as_agent=True,
-    client=client,
-    check_every_ms=1000,
-)
+When generating templates, follow these rules:
+- Output valid Jinja2 templates in a single fenced code block (```j2 ... ``` or ```jinja2 ... ```)
+- Include a comment on the first line with a suggested filename (e.g. # vrf_config.j2)
+- Use Jinja's whitespace control feature to avoid rendering blank lines
+- Only template data that is present in the provided query/return data
+- These templates are applied on a per-device basis
+- Always assume the user wants a small template for a portion of a configuration
+- The return data does NOT have a root "data" key
+- Remember that edge/node keys in the data are important
+"""
 
 INITIAL_PROMPT = """\n\nYour user has provided the following gql query and return data.
 
@@ -87,9 +88,6 @@ set_page_config(title="Template Builder")
 if "template_messages" not in st.session_state:
     st.session_state.template_messages = []
 
-if "config_fileids" not in st.session_state:
-    st.session_state.config_fileids = []
-
 if "gql_query" not in st.session_state:
     st.session_state.gql_query = ""
 
@@ -100,6 +98,9 @@ if "query_errors" not in st.session_state:
     st.session_state.query_errors = None
 
 buttons_disabled = not st.session_state.template_messages or st.session_state.gql_data is None
+
+if "config_files_content" not in st.session_state:
+    st.session_state.config_files_content = {}
 
 # UI Elements
 st.markdown("# Template Builder")
@@ -116,24 +117,25 @@ st.sidebar.download_button(
 )
 
 if st.sidebar.button("New Chat", disabled=buttons_disabled):
-    if "thread_id" in st.session_state:
-        del st.session_state.thread_id
-
     if "prompt_input" in st.session_state:
         del st.session_state.prompt_input
 
     st.session_state.template_messages = []
     st.session_state.gql_data = None
     st.session_state.gql_query = ""
+    st.session_state.config_files_content = {}
 
     st.rerun()
 
-if not st.session_state.config_fileids:
+if not st.session_state.config_files_content:
     st.markdown(
         "## Upload Configs (Optional)\n\nWe don't require configs to build templates,"
         "but it can be helpful to make sure we get the syntax right!"
     )
-    st.session_state.configs = st.file_uploader("Upload here", accept_multiple_files=True)
+    uploaded_configs = st.file_uploader("Upload here", accept_multiple_files=True)
+    if uploaded_configs:
+        for config_file in uploaded_configs:
+            st.session_state.config_files_content[config_file.name] = config_file.read().decode("utf-8")
 
 # GQL Query Input
 st.markdown("""## Step 1: Enter your GQL Query
@@ -176,38 +178,32 @@ if st.session_state.gql_data:
             st.markdown(message["content"])
 
     if prompt:
-        st.session_state.template_messages.append({"role": "user", "content": prompt})
+        # Build the actual prompt with context for the first message
+        actual_prompt = prompt
+        if not st.session_state.template_messages:
+            actual_prompt = (
+                prompt
+                + INITIAL_PROMPT.format(query=st.session_state.gql_query, data=st.session_state.gql_data)
+            )
+
+        st.session_state.template_messages.append({"role": "user", "content": actual_prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            if not st.session_state.template_messages:
-                chat_input = {
-                    "content": prompt
-                    + INITIAL_PROMPT.format(query=st.session_state.gql_query, data=st.session_state.gql_data)
-                }
-            else:
-                chat_input = {"content": prompt}
-
-            if "template_thread_id" in st.session_state:
-                chat_input["thread_id"] = st.session_state.template_thread_id
-
             with st.spinner("Thinking! Just a moment..."):
-                response = agent.invoke(
-                    input=chat_input,
-                    attachments=[
-                        {
-                            "file_id": fileid,
-                            "tools": [{"type": "file_search"}],
-                        }
-                        for fileid in st.session_state.config_fileids
-                    ],
-                )
+                try:
+                    # Provide config files as context if available
+                    context_files = dict(st.session_state.config_files_content)
 
-            if "template_thread_id" not in st.session_state:
-                st.session_state.template_thread_id = response.return_values["thread_id"]  # type: ignore[union-attr]
-
-            output = response.return_values["output"].replace("data.", "")  # type: ignore[union-attr]
+                    response = invoke_claude_with_history(
+                        messages=st.session_state.template_messages,
+                        system_prompt=TEMPLATE_BUILDER_SYSTEM_PROMPT,
+                        context_files=context_files if context_files else None,
+                    )
+                    output = response["output"].replace("data.", "")
+                except ClaudeCodeError as exc:
+                    output = f"Error communicating with Claude: {exc}"
 
             st.write(output)
 
